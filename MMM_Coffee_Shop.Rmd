@@ -1,0 +1,95 @@
+---
+title: "MMM_Coffee_shop"
+author: "Elena Marochkina"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: yes
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(skimr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(flextable)
+library(officer)
+
+```
+
+# Read data
+
+```{r coffee shop data}
+# Read data and transform categorical variables to factors
+data_sales <- read_excel("data/raw/Coffee_Shop_Sales.xlsx") %>%
+  mutate(across(where(is.character), as.factor),   # Convert all character columns to factors
+         across(c(transaction_id, store_id, product_id), as.factor))  # Convert specific numeric columns to factors
+
+# Take a look on data basic statistics
+skim(data_sales)
+```
+
+# Desriptive statistics
+
+## Descriptive statistics for numerical variables
+
+```{r descriptive statistics for numerical vars}
+# Function to calculate 95% confidence interval for the mean
+ci_95 <- function(x) {
+  n <- sum(!is.na(x))
+  if (n < 3) return("NA")
+  se <- sd(x, na.rm = TRUE) / sqrt(n)
+  mean_x <- mean(x, na.rm = TRUE)
+  ci <- c(mean_x - 1.96 * se, mean_x + 1.96 * se)
+  paste0(round(ci[1], 2), " - ", round(ci[2], 2))
+}
+
+# List of descriptive statistics
+statistics <- list(
+  `_Number of values` = ~as.character(sum(!is.na(.x))),
+  `_No data` = ~as.character(sum(is.na(.x))),
+  `_Mean` = ~ifelse(sum(!is.na(.x)) == 0, "NA", as.character(mean(.x, na.rm = TRUE) %>% round(2))),
+  `_Median` = ~ifelse(sum(!is.na(.x)) == 0, "NA", as.character(median(.x, na.rm = TRUE) %>% round(2))),
+  `_SD` = ~ifelse(sum(!is.na(.x)) < 3, "NA", as.character(sd(.x, na.rm = TRUE) %>% round(2))),
+  `_Q1 - Q3` = ~ifelse(sum(!is.na(.x)) == 0, "NA", paste0(as.character(quantile(.x, 0.25, na.rm = TRUE) %>% round(2)), " - ", as.character(quantile(.x, 0.75, na.rm = TRUE) %>% round(2)))),
+  `_IQR` = ~ifelse(sum(!is.na(.x)) == 0, "NA", as.character(IQR(.x, na.rm = TRUE) %>% round(2))),
+  `_95% CI` = ~ci_95(.x),
+  `_min` = ~ifelse(sum(!is.na(.x)) == 0, "NA", as.character(min(.x, na.rm = TRUE) %>% round(2))),
+  `_max` = ~ifelse(sum(!is.na(.x)) == 0, "NA", as.character(max(.x, na.rm = TRUE) %>% round(2)))
+)
+
+# Summarize the statistics for each numeric variable grouped by TenYearCHD
+data_sales %>%
+  select(where(is.numeric)) %>%
+  summarise(across(everything(), statistics)) %>%
+  pivot_longer(cols = everything(), names_sep = "__", names_to = c("Variable", "Stat")) %>%
+  rename(`Value` = value) %>%
+  flextable() %>%
+  theme_zebra() %>%
+  merge_v("Variable") %>%
+  width(j = c("Variable", "Stat", "Value"), width = 2)
+```
+## Descriptive statistics for categorical variables
+
+``` {r}
+# Clean and summarize the categorical data for all factor variables
+data_sales %>%
+  select(-transaction_id, -product_id, -product_detail) %>%
+  select(where(is.factor)) %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
+  group_by(Variable, Value) %>%
+  summarise(n = n(), .groups = 'drop') %>%
+  group_by(Variable) %>%
+  mutate(`No data` = sum(is.na(Value)),  # Calculate the number of missing values for each variable
+         `% by group` = (n / sum(n)) * 100) %>%
+  ungroup() %>%
+  select(Variable, Value, n, `% by group`, `No data`) %>%
+  arrange(Variable, Value) %>%
+  flextable() %>%
+  theme_zebra() %>%
+  merge_v("Variable")
+```
+
