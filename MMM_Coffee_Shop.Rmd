@@ -95,7 +95,9 @@ ggplot(outliers_by_product_price, aes(x = as.factor(product_id), y = unit_price)
   labs(title = "Boxplot of Unit Price by Product ID", x = "Product ID", y = "Unit Price") +
   coord_flip()+
   theme_custom +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        panel.grid.major = element_line(color = "grey80"),
+        panel.grid.minor = element_line(color = "grey90"))
 
 ```
 
@@ -168,7 +170,6 @@ data_sales %>%
 ```
 
 # Data Analysis
-
 ## Sales By Product Category
 
 ```{r}
@@ -181,7 +182,7 @@ sales_by_category <- data_sales %>%
   arrange(desc(total_sales_value))
 
 # Create a custom function for generating the bar plot
-plot_sales <- function(data, y_var, title, y_label, y_breaks_by, y_limits_factor, label_prefix = "") {
+plot_sales_categories <- function(data, y_var, title, y_label, y_breaks_by, label_prefix = "") {
   ggplot(data, aes(x = reorder(product_category, -get(y_var)), y = get(y_var), fill = product_category)) +
     geom_bar(stat = "identity") +
     geom_label(aes(label = paste(label_prefix, round(get(y_var)), sep = "")),
@@ -192,33 +193,31 @@ plot_sales <- function(data, y_var, title, y_label, y_breaks_by, y_limits_factor
                vjust = -0.2,
                position = position_dodge(width = 0.9)) +
     scale_y_continuous(labels = comma, 
-                       breaks = seq(0, max(data[[y_var]]) * y_limits_factor, by = y_breaks_by),
-                       limits = c(0, max(data[[y_var]]) * y_limits_factor)) +
+                       breaks = seq(0, max(data[[y_var]]) * 1.2, by = y_breaks_by),
+                       limits = c(0, max(data[[y_var]]) * 1.2)) +
     labs(title = title, 
          x = "Product Category", 
          y = y_label) +
     theme_custom +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels for readability
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "none")
 }
 
 # Call the function for total sales quantity
-plot_sales(sales_by_category, 
-                       y_var = "total_sales_qty", 
-                       title = "Total Sales Quantity by Product Category", 
-                       y_label = "Total Sales Quantity", 
-                       y_breaks_by = 10000, 
-                       y_limits_factor = 1.2,
-                       label_prefix = "n = ")
+plot_sales_categories(sales_by_category, 
+              y_var = "total_sales_qty",
+              title = "Total Sales Quantity by Product Category", 
+              y_label = "Total Sales Quantity", 
+              y_breaks_by = 10000, 
+              label_prefix = "n = ")
 
 # Call the function for total sales value
-plot_sales(sales_by_category, 
-                         y_var = "total_sales_value", 
-                         title = "Total Sales Income by Product Category", 
-                         y_label = "Total Sales Income", 
-                         y_breaks_by = 25000, 
-                         y_limits_factor = 1.2,
-                         label_prefix = "$")
+plot_sales_categories(sales_by_category, 
+              y_var = "total_sales_value",
+              title = "Total Sales Income by Product Category", 
+              y_label = "Total Sales Income", 
+              y_breaks_by = 25000, 
+              label_prefix = "$")
 
 ```
 
@@ -231,3 +230,71 @@ plot_sales(sales_by_category,
 3.  *Bakery* and *Drinking Chocolate* show moderate sales in both quantity and value, ranking third and fourth in both metrics.
 
 There’s a clear concentration of sales in a few major categories (Coffee, Tea, and Bakery), with the other categories contributing much smaller amounts.
+
+## Sales By Product Type
+
+``` {r}
+# Calculate total sales income across all categories
+total_sales_income <- sum(sales_by_category$total_sales_value, na.rm = TRUE)
+
+# Filter product categories that contribute at least 20% of the total income
+significant_categories <- sales_by_category %>%
+  filter(total_sales_value >= 0.1 * total_sales_income) %>%
+  pull(product_category)
+
+# Filter the data for the most valuable product_category and aggregate sales by product_type
+sales_by_type_significant <- data_sales %>%
+  filter(product_category %in% significant_categories) %>%
+  group_by(product_category, product_type) %>%
+  summarise(
+    total_sales_qty = sum(transaction_qty, na.rm = TRUE),
+    total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE),
+    count_transactions = n()  # Count of transactions for each product type
+  ) %>%
+  arrange(desc(total_sales_value))
+
+# Custom function to create dodged bar plots for product types within categories
+plot_sales_categories <- function(data, x_var, y_var, fill_var, title, y_label, y_breaks_by, label_prefix = "") {
+  ggplot(data, aes(x = reorder(get(x_var), -get(y_var)), y = get(y_var), fill = get(fill_var))) +
+    geom_bar(stat = "identity", position = position_dodge2(width = 0.9)) +
+    geom_text(aes(label = paste(label_prefix, round(get(y_var)), sep = ""), 
+                  y = get(y_var) / 2),
+              size = 3, 
+              fontface = "bold", 
+              colour = "gray90",
+              position = position_dodge2(width = 0.9), 
+              vjust = 0.5) +  # Dodged labels to match the bars
+    scale_y_continuous(labels = comma, 
+                       breaks = seq(0, max(data[[y_var]]) * 1.2, by = y_breaks_by),
+                       limits = c(0, max(data[[y_var]]) * 1.2)) +
+    labs(title = title, 
+         x = "Product Category", 
+         y = y_label,
+         fill = "Product Type") +
+    coord_flip()+
+    theme_custom +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "right")
+}
+
+# Call the function for total sales quantity (dodged by product type)
+plot_sales_categories(sales_by_type_significant, 
+                      x_var = "product_category", 
+                      y_var = "total_sales_qty", 
+                      fill_var = "product_type", 
+                      title = "Total Sales Quantity by Product Category and Product Type", 
+                      y_label = "Total Sales Quantity", 
+                      y_breaks_by = 2500,
+                      label_prefix = "n = ")
+
+# Call the function for total sales value (dodged by product type)
+plot_sales_categories(sales_by_type_significant, 
+                      x_var = "product_category", 
+                      y_var = "total_sales_value", 
+                      fill_var = "product_type", 
+                      title = "Total Sales Value by Product Category and Product Type", 
+                      y_label = "Total Sales Value", 
+                      y_breaks_by = 10000,
+                      label_prefix = "$")
+
+```
