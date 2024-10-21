@@ -12,7 +12,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-``` {r}
+```{r}
 # Add Libraries 
 library(readxl)
 library(skimr)
@@ -23,9 +23,12 @@ library(flextable)
 library(officer)
 library(lubridate)
 library(ggplot2)
+library(scales)
+library(gridExtra)
 
 # Set the custom theme
 theme_custom <- theme(
+    panel.background = element_rect(fill = "white"),
     plot.title = element_text(size = 15, hjust = 0.5),
     plot.subtitle = element_text(size = 15, hjust = 0.5),
     strip.text = element_text(size = 10),
@@ -103,6 +106,7 @@ Similarly, no outliers were removed for *unit_price*, as all values, including p
 Given the acceptability of the data, no further outlier treatment is required for either *transaction_qty* or *unit_price*, ensuring that the dataset remains representative of normal business operations.
 
 # Desriptive Statistics
+
 ## Descriptive Statistics for Numerical Variables
 
 ```{r descriptive statistics for numerical vars}
@@ -163,8 +167,67 @@ data_sales %>%
   merge_v("Variable")
 ```
 
-# Analyze Data
+# Data Analysis
+
 ## Sales By Product Category
+
 ```{r}
+# Aggregate the total sales by product category
+sales_by_category <- data_sales %>%
+  select(product_category, transaction_qty, unit_price) %>%
+  group_by(product_category) %>%
+  summarise(total_sales_qty = sum(transaction_qty, na.rm = TRUE),
+            total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)) %>%
+  arrange(desc(total_sales_value))
+
+# Create a custom function for generating the bar plot
+plot_sales <- function(data, y_var, title, y_label, y_breaks_by, y_limits_factor, label_prefix = "") {
+  ggplot(data, aes(x = reorder(product_category, -get(y_var)), y = get(y_var), fill = product_category)) +
+    geom_bar(stat = "identity") +
+    geom_label(aes(label = paste(label_prefix, round(get(y_var)), sep = "")),
+               fill = "white", 
+               size = 3, 
+               fontface = "bold", 
+               label.size = 0.3,
+               vjust = -0.2,
+               position = position_dodge(width = 0.9)) +
+    scale_y_continuous(labels = comma, 
+                       breaks = seq(0, max(data[[y_var]]) * y_limits_factor, by = y_breaks_by),
+                       limits = c(0, max(data[[y_var]]) * y_limits_factor)) +
+    labs(title = title, 
+         x = "Product Category", 
+         y = y_label) +
+    theme_custom +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels for readability
+          legend.position = "none")
+}
+
+# Call the function for total sales quantity
+plot_sales(sales_by_category, 
+                       y_var = "total_sales_qty", 
+                       title = "Total Sales Quantity by Product Category", 
+                       y_label = "Total Sales Quantity", 
+                       y_breaks_by = 10000, 
+                       y_limits_factor = 1.2,
+                       label_prefix = "n = ")
+
+# Call the function for total sales value
+plot_sales(sales_by_category, 
+                         y_var = "total_sales_value", 
+                         title = "Total Sales Income by Product Category", 
+                         y_label = "Total Sales Income", 
+                         y_breaks_by = 25000, 
+                         y_limits_factor = 1.2,
+                         label_prefix = "$")
 
 ```
+
+**Key Observations:**
+
+1.  *Coffee* is the top-performing product category in both quantity and value. It has the highest number of units sold and also generates the most revenue.
+
+2.  *Tea* is the second most popular category, both in terms of the number of units sold and total revenue, though its sales figures are significantly lower than Coffee.
+
+3.  *Bakery* and *Drinking Chocolate* show moderate sales in both quantity and value, ranking third and fourth in both metrics.
+
+There’s a clear concentration of sales in a few major categories (Coffee, Tea, and Bakery), with the other categories contributing much smaller amounts.
