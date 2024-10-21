@@ -10,6 +10,10 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
+
+``` {r}
+# Add Libraries 
 library(readxl)
 library(skimr)
 library(tidyverse)
@@ -17,24 +21,89 @@ library(tidyr)
 library(dplyr)
 library(flextable)
 library(officer)
+library(lubridate)
+library(ggplot2)
 
+# Set the custom theme
+theme_custom <- theme(
+    plot.title = element_text(size = 15, hjust = 0.5),
+    plot.subtitle = element_text(size = 15, hjust = 0.5),
+    strip.text = element_text(size = 10),
+    axis.text = element_text(size = 8),
+    axis.title = element_text(size = 15),
+    legend.title = element_text(size = 15),
+    legend.text = element_text(size = 10),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    
+  )
 ```
 
-# Read data
+# Read Data and Set Variables Types
 
 ```{r coffee shop data}
 # Read data and transform categorical variables to factors
 data_sales <- read_excel("data/raw/Coffee_Shop_Sales.xlsx") %>%
-  mutate(across(where(is.character), as.factor),   # Convert all character columns to factors
-         across(c(transaction_id, store_id, product_id), as.factor))  # Convert specific numeric columns to factors
+  mutate(across(where(is.character), as.factor),
+         across(c(transaction_id, store_id, product_id), as.factor))
 
 # Take a look on data basic statistics
 skim(data_sales)
 ```
 
-# Desriptive statistics
+# Clean Data and Check for Outliers
 
-## Descriptive statistics for numerical variables
+```{r clean data, width = 24, height = 6}
+# Check for missing data
+missing_data <- data_sales %>%
+  summarise(across(everything(), ~ sum(is.na(.))))  # Count missing values in each column
+
+# Check for duplicates
+duplicates <- data_sales %>%
+  filter(duplicated(.))
+
+# Detect outliers in unit_price within each product_id group
+detect_outliers_by_product <- function(column) {
+  mean_val <- mean(column, na.rm = TRUE)
+  sd_val <- sd(column, na.rm = TRUE)
+  
+  # Define bounds using the three-sigma rule
+  lower_bound <- mean_val - 3 * sd_val
+  upper_bound <- mean_val + 3 * sd_val
+  
+  # Return outliers
+  outliers <- column < lower_bound | column > upper_bound
+  return(outliers)
+}
+
+# Apply outlier detection for unit_price by product_id
+outliers_by_product_price <- data_sales %>%
+  group_by(product_id) %>%
+  mutate(price_outliers = detect_outliers_by_product(unit_price)) %>%
+
+  # Filter for products that have price outliers
+  filter(any(price_outliers)) %>%
+  ungroup()
+
+# Visualize the outliers
+# Boxplot for unit_price by product_id
+ggplot(outliers_by_product_price, aes(x = as.factor(product_id), y = unit_price)) +
+  geom_boxplot(width = 0.9) +
+  labs(title = "Boxplot of Unit Price by Product ID", x = "Product ID", y = "Unit Price") +
+  coord_flip()+
+  theme_custom +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+Upon analysis, it was determined that outlier detection for *transaction_qty* is unnecessary, as the observed range (1–8) reflects typical and reasonable purchase quantities.
+
+Similarly, no outliers were removed for *unit_price*, as all values, including price reductions of up to 50% (price_id = 9), are consistent with pricing strategies such as discounts or promotions.
+
+Given the acceptability of the data, no further outlier treatment is required for either *transaction_qty* or *unit_price*, ensuring that the dataset remains representative of normal business operations.
+
+# Desriptive Statistics
+## Descriptive Statistics for Numerical Variables
 
 ```{r descriptive statistics for numerical vars}
 # Function to calculate 95% confidence interval for the mean
@@ -72,9 +141,10 @@ data_sales %>%
   merge_v("Variable") %>%
   width(j = c("Variable", "Stat", "Value"), width = 2)
 ```
-## Descriptive statistics for categorical variables
 
-``` {r}
+## Descriptive Statistics for Categorical Variables
+
+```{r}
 # Clean and summarize the categorical data for all factor variables
 data_sales %>%
   select(-transaction_id, -product_id, -product_detail) %>%
@@ -93,3 +163,8 @@ data_sales %>%
   merge_v("Variable")
 ```
 
+# Analyze Data
+## Sales By Product Category
+```{r}
+
+```
