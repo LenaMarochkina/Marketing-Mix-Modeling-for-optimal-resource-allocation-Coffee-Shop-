@@ -23,16 +23,17 @@ library(flextable)
 library(lubridate)
 library(ggplot2)
 library(gridExtra)
+library(scales)
 
 # Set the custom theme
-theme_custom <- theme(
-    panel.background = element_rect(fill = "white"),
+theme_custom <- theme_minimal() +
+  theme (
     plot.title = element_text(size = 14, hjust = 0.5),
     plot.subtitle = element_text(size = 12, hjust = 0.5),
     strip.text = element_text(size = 10),
     axis.text = element_text(size = 8),
-    axis.title = element_text(size = 15),
-    legend.title = element_text(size = 15),
+    axis.title = element_text(size = 12),
+    legend.title = element_text(size = 12),
     legend.text = element_text(size = 10),
     axis.line = element_line(color = "black"),
     axis.ticks = element_line(color = "black"),
@@ -40,7 +41,7 @@ theme_custom <- theme(
   )
 ```
 
-# Read Data and Set Variables Types
+# 1.    Read Data and Set Variables Types
 
 ```{r coffee shop data}
 # Read data and transform categorical variables to factors
@@ -52,7 +53,7 @@ data_sales <- read_excel("data/raw/Coffee_Shop_Sales.xlsx") %>%
 skim(data_sales)
 ```
 
-# Clean Data and Check for Outliers
+# 2.    Clean Data and Check for Outliers
 
 ```{r clean data, width = 24, height = 6}
 # Check for missing data
@@ -92,10 +93,7 @@ ggplot(outliers_by_product_price, aes(x = as.factor(product_id), y = unit_price)
   geom_boxplot(width = 0.9) +
   labs(title = "Boxplot of Unit Price by Product ID", x = "Product ID", y = "Unit Price") +
   coord_flip()+
-  theme_custom +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1),
-        panel.grid.major = element_line(color = "grey80"),
-        panel.grid.minor = element_line(color = "grey90"))
+  theme_custom 
 
 ```
 
@@ -105,9 +103,9 @@ Similarly, no outliers were removed for *unit_price*, as all values, including p
 
 Given the acceptability of the data, no further outlier treatment is required for either *transaction_qty* or *unit_price*, ensuring that the dataset remains representative of normal business operations.
 
-# Desriptive Statistics
+# 3.    Desriptive Statistics
 
-## Descriptive Statistics for Numerical Variables
+## 3.1.   Descriptive Statistics for Numerical Variables
 
 ```{r numerical variables}
 # Function to calculate 95% confidence interval for the mean
@@ -146,7 +144,7 @@ data_sales %>%
   width(j = c("Variable", "Stat", "Value"), width = 2)
 ```
 
-## Descriptive Statistics for Categorical Variables
+## 3.2.   Descriptive Statistics for Categorical Variables
 
 ```{r categorical variables}
 # Clean and summarize the categorical data for all factor variables
@@ -167,8 +165,9 @@ data_sales %>%
   merge_v("Variable")
 ```
 
-# Data Analysis
-## Sales By Product Category
+# 4.    Data Analysis
+## 4.1.   Sales By Product
+### 4.1.1.    Sales By Product Category
 
 ```{r product category}
 # Aggregate the total sales by product category
@@ -219,6 +218,32 @@ plot_sales_categories(sales_by_category,
 
 ```
 
+``` {r}
+# Summarize average sales per transaction by product category
+avg_sales_per_transaction_category <- data_sales %>%
+  group_by(product_category) %>%
+  summarise(
+    avg_sales_per_transaction = sum(transaction_qty * unit_price, na.rm = TRUE) / n()
+  ) %>%
+  arrange(desc(avg_sales_per_transaction))
+
+# Plot the average sales per transaction by product category
+ggplot(avg_sales_per_transaction_category, aes(x = reorder(product_category, avg_sales_per_transaction), y = avg_sales_per_transaction)) +
+  geom_bar(stat = "identity", fill = "pink") +
+  coord_flip() +
+  labs(title = "Average Sales Per Transaction by Product Category", 
+       x = "Product Category", 
+       y = "Average Sales Per Transaction ($)") +
+  geom_label(aes(label = scales::comma(round(avg_sales_per_transaction, 2))), 
+             position = position_stack(vjust = 0.5), 
+             size = 3, fill = "white") +
+  theme_custom
+
+```
+
+Coffee beans and Branded products may be higher-priced items, leading to higher per-transaction sales even though they have fewer units sold.
+Coffee and Tea are likely lower-priced items but are sold in much larger quantities, contributing more significantly to the overall revenue, even though their average sales per transaction are lower.
+
 **Key Observations:**
 
 1.  *Coffee* is the top-performing product category in both quantity and value. It has the highest number of units sold and also generates the most revenue.
@@ -229,7 +254,7 @@ plot_sales_categories(sales_by_category,
 
 There’s a clear concentration of sales in a few major categories (Coffee, Tea, and Bakery), with the other categories contributing much smaller amounts.
 
-## Sales By Product Type
+### 4.1.2.   Sales By Product Type
 
 There are 29 distinct product types in the dataset. To streamline the analysis, I chose to focus on the product types that belong to the top-selling product categories. These top categories were identified as those contributing at least 10% of the total revenue. This threshold is flexible and can be adjusted as needed. 
 
@@ -298,6 +323,7 @@ plot_sales_categories(sales_by_type_significant,
                       label_prefix = "$")
 
 ```
+
 The analysis of sales by product type of the best selling categories shows:
 
 The top three best-selling product types were *Brewed Chai Tea (sold 26,250 times), Gourmet Brewed Coffee (sold 25,973 times), and Barista Espresso (sold 24,943 times)*.
@@ -327,7 +353,7 @@ No product types were discovered that had low sales but high profit, indicating 
 
 **Ensuring that all stores are regularly stocked with these high-performing products is crucial, as they play a significant role in both sales volume and revenue.**
 
-## Sales By Product ID
+### 4.1.3.   Sales By Product ID
 
 There are 80 unique product IDs in the dataset, but for this analysis, I concentrated on the Top 10 items that contribute the most significant portion of the total profit or were best-sellers. 
 
@@ -416,12 +442,97 @@ ggplot(sales_by_size, aes(x = product_category, y = total_sales_value, fill = dr
   theme_custom
 
 ```
+
 This visualization helps highlight which drink sizes are most popular in each product category, with Large and Regular sizes standing out across all categories.
 
 These insights suggest that stocking and promoting Large and Regular drinks should be a priority for maximizing both sales volume and profit in these categories. Efforts should be focused on ensuring these sizes are always available, especially in the Tea and Drinking Chocolate categories.
 
+## 4.2.   Sales by Store ID and Location
+### 4.2.1.    Compare Different Stores by Sales Value and Quantity Sold
 
+``` {r}
+# Summarize sales by store ID
+sales_by_store <- data_sales %>%
+  group_by(store_location, store_id) %>%
+  summarise(
+    total_sales_qty = sum(transaction_qty, na.rm = TRUE),
+    total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)
+  ) %>%
+  arrange(desc(total_sales_value))
+sales_by_store_long <- sales_by_store %>%
+  pivot_longer(cols = c(total_sales_qty, total_sales_value), 
+               names_to = "sales_metric", 
+               values_to = "sales_value")
 
+# Plot both total sales quantity and value in a faceted plot
+ggplot(sales_by_store_long, aes(x = reorder(store_location, sales_value), y = sales_value, fill = store_location)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ sales_metric, scales = "free") +  # Create separate plots for each metric
+  labs(title = "Total Sales Quantity and Value by Store Location", 
+       x = "Store Location",
+       y = "Sales Value or Quantity",
+      fill = "Store Location") +
+  theme_custom
 
+```
 
+### 4.2.2.    Sales by Product Category for Each Store Location
 
+``` {r}
+sales_by_category_stores <- data_sales %>%
+  group_by(store_location, product_category) %>%
+  summarise(
+    total_sales_qty = sum(transaction_qty, na.rm = TRUE),
+    total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)
+  ) %>%
+  arrange(store_location, desc(total_sales_value))
+
+ggplot(sales_by_category_stores, aes(x = reorder(product_category, total_sales_value), y = total_sales_value, fill = product_category)) +
+  geom_bar(stat = "identity", position = "dodge2") +
+  facet_wrap(~ store_location) +
+  labs(title = "Sales by Product Category and Store Location (Profit)",
+       x = "Product Category",
+       y = "Total Sales Value ($)",
+       fill = "Product Category") +
+  theme_custom +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(sales_by_category_stores, aes(x = reorder(product_category, total_sales_qty), y = total_sales_qty, fill = product_category)) +
+  geom_bar(stat = "identity", position = "dodge2") +
+  facet_wrap(~ store_location) +
+  labs(title = "Sales by Product Category and Store Location (Sold Items)",
+       x = "Product Category",
+       y = "Total Sales Value ($)",
+       fill = "Product Category") +
+  theme_custom +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+### 4.2.3. Average Sales Per Transaction by Store
+
+``` {r}
+# Calculate average sales per transaction by store
+avg_sales_per_transaction <- data_sales %>%
+  group_by(store_location) %>%
+  summarise(
+    avg_sales_per_transaction = sum(transaction_qty * unit_price, na.rm = TRUE) / n()
+  ) %>%
+  arrange(desc(avg_sales_per_transaction))
+
+# Plot average sales per transaction by store
+ggplot(avg_sales_per_transaction, aes(x = reorder(store_location, avg_sales_per_transaction), y = avg_sales_per_transaction, fill = store_location)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Average Sales per Transaction by Store Location",
+       x = "Store Location",
+       y = "Average Sales per Transaction ($)",
+       fill = "Store Location") +
+  geom_label(aes(label = scales::comma(round(avg_sales_per_transaction, 2))), 
+             position = position_stack(vjust = 0.5), 
+             size = 5, fill = "white") +
+  theme_custom
+```
+
+There is little variation in the quantity of products sold, total profit, and sales across different product categories among the three stores. Similarly, the average sales per transaction are quite consistent across the stores, indicating that customer spending patterns are generally similar.
+
+## 4.5.   Sales by Timeline
