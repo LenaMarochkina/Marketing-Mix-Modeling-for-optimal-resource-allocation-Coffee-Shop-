@@ -47,7 +47,11 @@ theme_custom <- theme_minimal() +
 # Read data and transform categorical variables to factors
 data_sales <- read_excel("data/raw/Coffee_Shop_Sales.xlsx") %>%
   mutate(across(where(is.character), as.factor),
-         across(c(transaction_id, store_id, product_id), as.factor))
+         across(c(transaction_id, store_id, product_id), as.factor)) %>%
+  mutate(
+    transaction_date_and_time = as.POSIXct(paste(as.Date(transaction_date), hms::as_hms(transaction_time)), format = "%Y-%m-%d %H:%M:%S")
+  ) %>%
+  relocate(transaction_date_and_time, .after = transaction_time)
 
 # Take a look on data basic statistics
 skim(data_sales)
@@ -288,7 +292,7 @@ plot_sales_categories <- function(data, x_var, y_var, fill_var, title, y_label, 
               fontface = "bold", 
               colour = "gray90",
               position = position_dodge2(width = 0.9), 
-              vjust = 0.5) +  # Dodged labels to match the bars
+              vjust = 0.5) +
     scale_y_continuous(labels = comma, 
                        breaks = seq(0, max(data[[y_var]]) * 1.2, by = y_breaks_by),
                        limits = c(0, max(data[[y_var]]) * 1.2)) +
@@ -368,19 +372,24 @@ sales_profit <- data_sales %>%
   ungroup() %>%
   arrange(desc(total_sales_value))  # Sort by total sales value in descending order
 
-# Select the top 20 items contributing the most profit 
-top_20_products_sales <- sales_profit %>%
+# Select the top 10 items contributing the most profit 
+top_10_products_sales <- sales_profit %>%
   slice_max(order_by = total_sales_value, n = 10)
 
-# Select the top 20 items by quantity sold
-top_20_products_sales <- sales_profit %>%
+# Select the top 10 items by quantity sold
+top_10_products_sales <- sales_profit %>%
   arrange(desc(total_sales_qty)) %>%
-  slice(1:20)
+  slice(1:10)
 
-ggplot(top_20_products_sales, aes(x = reorder(product_id, total_sales_value), y = total_sales_value, fill = product_detail)) +
+ggplot(top_10_products_sales, aes(x = reorder(product_id, total_sales_value), y = total_sales_value, fill = product_detail)) +
   geom_bar(stat = "identity") +
-  coord_flip() +  # Flip coordinates for a horizontal bar chart
-  labs(title = "Top 20 Products by Total Profit",
+  coord_flip() +
+  geom_text(aes(label = paste("$", round(total_sales_value))),
+              size = 3, 
+              fontface = "bold", 
+              colour = "gray90",
+              position = position_stack(vjust = 0.5)) +
+  labs(title = "Top 10 Products by Total Profit",
        x = "Product ID",
        y = "Total Sales Value ($)",
        fill = "Product Detail") +
@@ -391,10 +400,15 @@ ggplot(top_20_products_sales, aes(x = reorder(product_id, total_sales_value), y 
     legend.key.size = unit(0.3, "cm")
   )
 
-ggplot(top_20_products_sales, aes(x = reorder(product_id, total_sales_qty), y = total_sales_qty, fill = product_detail)) +
+ggplot(top_10_products_sales, aes(x = reorder(product_id, total_sales_qty), y = total_sales_qty, fill = product_detail)) +
   geom_bar(stat = "identity") +
   coord_flip() +
-  labs(title = "Top 20 Products by Sales Quantity",
+   geom_text(aes(label = paste("n = ", round(total_sales_qty))),
+              size = 3, 
+              fontface = "bold", 
+              colour = "gray90",
+              position = position_stack(vjust = 0.5)) +
+  labs(title = "Top 10 Products by Sales Quantity",
        x = "Product ID",
        y = "Total Quantity",
        fill = "Product Detail") +
@@ -426,7 +440,17 @@ sales_by_size <- data_sales %>%
 
 # Plot the total sales by drink size for each category
 ggplot(sales_by_size, aes(x = product_category, y = total_sales_qty, fill = drink_size)) +
-  geom_bar(stat = "identity", position = "dodge2") +
+  geom_bar(stat = "identity", position = position_dodge2(width = 0.9)) +
+  geom_label(aes(label = paste("n=", round(total_sales_qty), sep = ""), group = drink_size),
+               fill = "white", 
+               size = 2, 
+               fontface = "bold", 
+               label.size = 0.2,
+               vjust = -0.5,
+               position = position_dodge2(width = 0.9)) +
+  scale_y_continuous(labels = comma, 
+                       breaks = seq(0, max(sales_by_size$total_sales_qty) * 1.2, by = 5000),
+                     limits = c(0, max(sales_by_size$total_sales_qty) * 1.2)) +
   labs(title = "Best-Selling Drink Sizes by Category", 
        x = "Product Category", 
        y = "Total Sales Quantity",
@@ -434,9 +458,19 @@ ggplot(sales_by_size, aes(x = product_category, y = total_sales_qty, fill = drin
   theme_custom
 
 ggplot(sales_by_size, aes(x = product_category, y = total_sales_value, fill = drink_size)) +
-  geom_bar(stat = "identity", position = "dodge2") +
+  geom_bar(stat = "identity", position = position_dodge2(width = 0.9)) +
+  geom_label(aes(label = paste("$", round(total_sales_value), sep = ""), group = drink_size),
+               fill = "white", 
+               size = 2, 
+               fontface = "bold", 
+               label.size = 0.2,
+               vjust = -0.5,
+               position = position_dodge2(width = 0.9)) +
+  scale_y_continuous(labels = comma, 
+                       breaks = seq(0, max(sales_by_size$total_sales_value) * 1.2, by = 25000),
+                     limits = c(0, max(sales_by_size$total_sales_value) * 1.2)) +
   labs(title = "Total Sales Value by Drink Size and Category", 
-       x = "Drink Size", 
+       x = "Product Category", 
        y = "Total Sales Value ($)",
        fill = "Drink Size") +
   theme_custom
@@ -458,20 +492,28 @@ sales_by_store <- data_sales %>%
     total_sales_qty = sum(transaction_qty, na.rm = TRUE),
     total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)
   ) %>%
-  arrange(desc(total_sales_value))
-sales_by_store_long <- sales_by_store %>%
+  arrange(desc(total_sales_value)) %>%
   pivot_longer(cols = c(total_sales_qty, total_sales_value), 
                names_to = "sales_metric", 
                values_to = "sales_value")
 
 # Plot both total sales quantity and value in a faceted plot
-ggplot(sales_by_store_long, aes(x = reorder(store_location, sales_value), y = sales_value, fill = store_location)) +
-  geom_bar(stat = "identity") +
-  facet_wrap(~ sales_metric, scales = "free") +  # Create separate plots for each metric
+ggplot(sales_by_store, aes(x = reorder(store_location, sales_value), y = sales_value, fill = store_location)) +
+  geom_bar(stat = "identity", position = position_dodge2(width = 0.9)) +
+  geom_label(aes(label = scales::comma(round(sales_value))),
+             fill = "white",
+             position = position_dodge2(width = 0.9), 
+             vjust = -0.3,
+             size = 3, 
+             fontface = "bold") +
+  scale_y_continuous(labels = comma,
+                     breaks = seq(0, max(sales_by_store$sales_value) * 1.2, by = 50000),
+                     limits = c(0, max(sales_by_store$sales_value) * 1.2)) +
+  facet_wrap(~ sales_metric, scales = "free") +
   labs(title = "Total Sales Quantity and Value by Store Location", 
        x = "Store Location",
        y = "Sales Value or Quantity",
-      fill = "Store Location") +
+       fill = "Store Location") +
   theme_custom
 
 ```
@@ -490,6 +532,8 @@ sales_by_category_stores <- data_sales %>%
 ggplot(sales_by_category_stores, aes(x = reorder(product_category, total_sales_value), y = total_sales_value, fill = product_category)) +
   geom_bar(stat = "identity", position = "dodge2") +
   facet_wrap(~ store_location) +
+  scale_y_continuous(labels = comma,
+                     breaks = seq(0, max(sales_by_category_stores$total_sales_value) * 1.2, by = 10000)) +
   labs(title = "Sales by Product Category and Store Location (Profit)",
        x = "Product Category",
        y = "Total Sales Value ($)",
@@ -500,6 +544,8 @@ ggplot(sales_by_category_stores, aes(x = reorder(product_category, total_sales_v
 ggplot(sales_by_category_stores, aes(x = reorder(product_category, total_sales_qty), y = total_sales_qty, fill = product_category)) +
   geom_bar(stat = "identity", position = "dodge2") +
   facet_wrap(~ store_location) +
+  scale_y_continuous(labels = comma,
+                     breaks = seq(0, max(sales_by_category_stores$total_sales_qty) * 1.2, by = 5000)) +
   labs(title = "Sales by Product Category and Store Location (Sold Items)",
        x = "Product Category",
        y = "Total Sales Value ($)",
@@ -513,7 +559,7 @@ ggplot(sales_by_category_stores, aes(x = reorder(product_category, total_sales_q
 
 ``` {r}
 # Calculate average sales per transaction by store
-avg_sales_per_transaction <- data_sales %>%
+avg_sales_per_transaction_store <- data_sales %>%
   group_by(store_location) %>%
   summarise(
     avg_sales_per_transaction = sum(transaction_qty * unit_price, na.rm = TRUE) / n()
@@ -521,18 +567,21 @@ avg_sales_per_transaction <- data_sales %>%
   arrange(desc(avg_sales_per_transaction))
 
 # Plot average sales per transaction by store
-ggplot(avg_sales_per_transaction, aes(x = reorder(store_location, avg_sales_per_transaction), y = avg_sales_per_transaction, fill = store_location)) +
+ggplot(avg_sales_per_transaction_store, aes(x = reorder(store_location, avg_sales_per_transaction), y = avg_sales_per_transaction, fill = store_location)) +
   geom_bar(stat = "identity") +
+  geom_label(aes(label = scales::comma(round(avg_sales_per_transaction, 2))), 
+             position = position_stack(vjust = 0.5), 
+             size = 5, fill = "white") +
+  scale_y_continuous(labels = comma,
+                     breaks = seq(0, max(avg_sales_per_transaction_store$avg_sales_per_transaction) * 1.2, by = 0.2)) +
   labs(title = "Average Sales per Transaction by Store Location",
        x = "Store Location",
        y = "Average Sales per Transaction ($)",
        fill = "Store Location") +
-  geom_label(aes(label = scales::comma(round(avg_sales_per_transaction, 2))), 
-             position = position_stack(vjust = 0.5), 
-             size = 5, fill = "white") +
   theme_custom
 ```
 
 There is little variation in the quantity of products sold, total profit, and sales across different product categories among the three stores. Similarly, the average sales per transaction are quite consistent across the stores, indicating that customer spending patterns are generally similar.
 
 ## 4.5.   Sales by Timeline
+
