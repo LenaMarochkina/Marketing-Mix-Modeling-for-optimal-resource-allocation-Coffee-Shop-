@@ -20,17 +20,15 @@ library(tidyverse)
 library(tidyr)
 library(dplyr)
 library(flextable)
-library(officer)
 library(lubridate)
 library(ggplot2)
-library(scales)
 library(gridExtra)
 
 # Set the custom theme
 theme_custom <- theme(
     panel.background = element_rect(fill = "white"),
-    plot.title = element_text(size = 15, hjust = 0.5),
-    plot.subtitle = element_text(size = 15, hjust = 0.5),
+    plot.title = element_text(size = 14, hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5),
     strip.text = element_text(size = 10),
     axis.text = element_text(size = 8),
     axis.title = element_text(size = 15),
@@ -111,7 +109,7 @@ Given the acceptability of the data, no further outlier treatment is required fo
 
 ## Descriptive Statistics for Numerical Variables
 
-```{r descriptive statistics for numerical vars}
+```{r numerical variables}
 # Function to calculate 95% confidence interval for the mean
 ci_95 <- function(x) {
   n <- sum(!is.na(x))
@@ -150,7 +148,7 @@ data_sales %>%
 
 ## Descriptive Statistics for Categorical Variables
 
-```{r}
+```{r categorical variables}
 # Clean and summarize the categorical data for all factor variables
 data_sales %>%
   select(-transaction_id, -product_id, -product_detail) %>%
@@ -172,7 +170,7 @@ data_sales %>%
 # Data Analysis
 ## Sales By Product Category
 
-```{r}
+```{r product category}
 # Aggregate the total sales by product category
 sales_by_category <- data_sales %>%
   select(product_category, transaction_qty, unit_price) %>%
@@ -233,11 +231,13 @@ There’s a clear concentration of sales in a few major categories (Coffee, Tea,
 
 ## Sales By Product Type
 
-``` {r}
+There are 29 distinct product types in the dataset. To streamline the analysis, I chose to focus on the product types that belong to the top-selling product categories. These top categories were identified as those contributing at least 10% of the total revenue. This threshold is flexible and can be adjusted as needed. 
+
+``` {r product type}
 # Calculate total sales income across all categories
 total_sales_income <- sum(sales_by_category$total_sales_value, na.rm = TRUE)
 
-# Filter product categories that contribute at least 20% of the total income
+# Filter product categories that contribute at least 10% of the total income
 significant_categories <- sales_by_category %>%
   filter(total_sales_value >= 0.1 * total_sales_income) %>%
   pull(product_category)
@@ -298,3 +298,130 @@ plot_sales_categories(sales_by_type_significant,
                       label_prefix = "$")
 
 ```
+The analysis of sales by product type of the best selling categories shows:
+
+The top three best-selling product types were *Brewed Chai Tea (sold 26,250 times), Gourmet Brewed Coffee (sold 25,973 times), and Barista Espresso (sold 24,943 times)*.
+The top three product types generating the highest profit were *Barista Espresso (\$91,406), Brewed Chai Tea (\$77,082), and Hot Chocolate (\$72,416 from 17,457 sales)*.
+
+It is important to note that the best-selling product type did not generate the highest profit, but still are in top three product types generating the highest profit. Let's ensure there is correlation between products sold and total sales value.
+
+``` {r correlation between units sold and profit, width = 24, height = 6}
+# Create scatter plot showing the relationship between units sold and total sales value (profit)
+ggplot(sales_by_type_significant, aes(x = total_sales_qty, y = total_sales_value)) +
+  geom_point(aes(color = product_type), size = 4, alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, color = "pink") +
+  labs(title = "Correlation Between Units Sold and Total Profit by Product Type",
+       x = "Units Sold",
+       y = "Total Sales Value ($)",
+       color = "Product Type") +
+  theme_custom +
+  theme(
+    legend.title = element_text(size = 8),
+    legend.text = element_text(size = 6),
+    legend.key.size = unit(0.1, "cm")
+  )
+```
+
+The pink line represents the trend line (using linear regression), showing the general positive relationship between units sold and total sales value. This means that, as the number of units sold increases, total sales value generally increases as well. Since The correlation between sales and profit is positive, but the relationship isn't perfect—some products deviate from the trend.
+No product types were discovered that had low sales but high profit, indicating that products that generate significant revenue generally also have high sales volumes.
+
+**Ensuring that all stores are regularly stocked with these high-performing products is crucial, as they play a significant role in both sales volume and revenue.**
+
+## Sales By Product ID
+
+There are 80 unique product IDs in the dataset, but for this analysis, I concentrated on the Top 10 items that contribute the most significant portion of the total profit or were best-sellers. 
+
+``` {r product id}
+# Calculate the total profit for each product_id
+sales_profit <- data_sales %>%
+  group_by(product_id, product_detail) %>%
+  summarise(
+    total_sales_qty = sum(transaction_qty, na.rm = TRUE),
+    total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  arrange(desc(total_sales_value))  # Sort by total sales value in descending order
+
+# Select the top 20 items contributing the most profit 
+top_20_products_sales <- sales_profit %>%
+  slice_max(order_by = total_sales_value, n = 10)
+
+# Select the top 20 items by quantity sold
+top_20_products_sales <- sales_profit %>%
+  arrange(desc(total_sales_qty)) %>%
+  slice(1:20)
+
+ggplot(top_20_products_sales, aes(x = reorder(product_id, total_sales_value), y = total_sales_value, fill = product_detail)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +  # Flip coordinates for a horizontal bar chart
+  labs(title = "Top 20 Products by Total Profit",
+       x = "Product ID",
+       y = "Total Sales Value ($)",
+       fill = "Product Detail") +
+  theme_custom +
+  theme(
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm")
+  )
+
+ggplot(top_20_products_sales, aes(x = reorder(product_id, total_sales_qty), y = total_sales_qty, fill = product_detail)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Top 20 Products by Sales Quantity",
+       x = "Product ID",
+       y = "Total Quantity",
+       fill = "Product Detail") +
+  theme_custom +
+  theme(
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm")
+  )
+```
+Since the previous analysis didn't provide sufficient insights, I decided to focus on identifying which drink sizes were the best sellers within the coffee, tea, and drinking chocolate categories. 
+
+``` {r}
+# Extract drink size from product_detail (assuming size is at the end)
+sales_by_size <- data_sales %>%
+  filter(product_category %in% c("Coffee", "Tea", "Drinking Chocolate")) %>%
+  mutate(
+    drink_size = case_when(
+      grepl("Sm", product_detail) ~ "Small",
+      grepl("Rg", product_detail) ~ "Regular",
+      grepl("Lg", product_detail) ~ "Large",
+      TRUE ~ "Unknown"
+    )
+  ) %>%
+  group_by(product_category, drink_size) %>%
+  summarise(total_sales_qty = sum(transaction_qty, na.rm = TRUE),
+            total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)) %>%
+  arrange(desc(total_sales_qty))
+
+# Plot the total sales by drink size for each category
+ggplot(sales_by_size, aes(x = product_category, y = total_sales_qty, fill = drink_size)) +
+  geom_bar(stat = "identity", position = "dodge2") +
+  labs(title = "Best-Selling Drink Sizes by Category", 
+       x = "Product Category", 
+       y = "Total Sales Quantity",
+       fill = "Drink Size") +
+  theme_custom
+
+ggplot(sales_by_size, aes(x = product_category, y = total_sales_value, fill = drink_size)) +
+  geom_bar(stat = "identity", position = "dodge2") +
+  labs(title = "Total Sales Value by Drink Size and Category", 
+       x = "Drink Size", 
+       y = "Total Sales Value ($)",
+       fill = "Drink Size") +
+  theme_custom
+
+```
+This visualization helps highlight which drink sizes are most popular in each product category, with Large and Regular sizes standing out across all categories.
+
+These insights suggest that stocking and promoting Large and Regular drinks should be a priority for maximizing both sales volume and profit in these categories. Efforts should be focused on ensuring these sizes are always available, especially in the Tea and Drinking Chocolate categories.
+
+
+
+
+
+
