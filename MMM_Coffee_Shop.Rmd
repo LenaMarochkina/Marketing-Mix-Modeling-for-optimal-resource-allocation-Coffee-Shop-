@@ -62,7 +62,7 @@ skim(data_sales)
 ```{r clean data, width = 24, height = 6}
 # Check for missing data
 missing_data <- data_sales %>%
-  summarise(across(everything(), ~ sum(is.na(.))))  # Count missing values in each column
+  summarise(across(everything(), ~ sum(is.na(.))))
 
 # Check for duplicates
 duplicates <- data_sales %>%
@@ -145,7 +145,7 @@ data_sales %>%
   flextable() %>%
   theme_zebra() %>%
   merge_v("Variable") %>%
-  width(j = c("Variable", "Stat", "Value"), width = 2)
+  autofit()
 ```
 
 ## 3.2.   Descriptive Statistics for Categorical Variables
@@ -159,14 +159,15 @@ data_sales %>%
   group_by(Variable, Value) %>%
   summarise(n = n(), .groups = 'drop') %>%
   group_by(Variable) %>%
-  mutate(`No data` = sum(is.na(Value)),  # Calculate the number of missing values for each variable
-         `% by group` = (n / sum(n)) * 100) %>%
+  mutate(`No data` = sum(is.na(Value)),
+         `% by group` = paste0(round((n / sum(n)) * 100, 2), " %") ) %>%
   ungroup() %>%
   select(Variable, Value, n, `% by group`, `No data`) %>%
   arrange(Variable, Value) %>%
   flextable() %>%
   theme_zebra() %>%
-  merge_v("Variable")
+  merge_v("Variable") %>%
+  autofit()
 ```
 
 # 4.    Data Analysis
@@ -573,7 +574,7 @@ ggplot(avg_sales_per_transaction_store, aes(x = reorder(store_location, avg_sale
              position = position_stack(vjust = 0.5), 
              size = 5, fill = "white") +
   scale_y_continuous(labels = comma,
-                     breaks = seq(0, max(avg_sales_per_transaction_store$avg_sales_per_transaction) * 1.2, by = 0.2)) +
+                     breaks = seq(0, max(avg_sales_per_transaction_store$avg_sales_per_transaction) * 1.2, by = 0.5)) +
   labs(title = "Average Sales per Transaction by Store Location",
        x = "Store Location",
        y = "Average Sales per Transaction ($)",
@@ -584,4 +585,6 @@ ggplot(avg_sales_per_transaction_store, aes(x = reorder(store_location, avg_sale
 There is little variation in the quantity of products sold, total profit, and sales across different product categories among the three stores. Similarly, the average sales per transaction are quite consistent across the stores, indicating that customer spending patterns are generally similar.
 
 ## 4.5.   Sales by Timeline
+### 4.5.1.    Sales Trend Over Time (Monthly, Weekly, Daily)
+
 
