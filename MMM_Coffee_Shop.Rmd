@@ -24,6 +24,7 @@ library(lubridate)
 library(ggplot2)
 library(gridExtra)
 library(scales)
+library(RColorBrewer)
 
 # Set the custom theme
 theme_custom <- theme_minimal() +
@@ -39,6 +40,11 @@ theme_custom <- theme_minimal() +
     axis.ticks = element_line(color = "black"),
     
   )
+
+palette1 <- brewer.pal(8, "Set2")
+palette2 <- brewer.pal(8, "Set3")
+
+merged_palette <- c(palette1, palette2)
 ```
 
 # 1.    Read Data and Set Variables Types
@@ -197,6 +203,7 @@ plot_sales_categories <- function(data, y_var, title, y_label, y_breaks_by, labe
     scale_y_continuous(labels = comma, 
                        breaks = seq(0, max(data[[y_var]]) * 1.2, by = y_breaks_by),
                        limits = c(0, max(data[[y_var]]) * 1.2)) +
+    scale_fill_manual(values = merged_palette) +
     labs(title = title, 
          x = "Product Category", 
          y = y_label) +
@@ -233,13 +240,14 @@ avg_sales_per_transaction_category <- data_sales %>%
   arrange(desc(avg_sales_per_transaction))
 
 # Plot the average sales per transaction by product category
-ggplot(avg_sales_per_transaction_category, aes(x = reorder(product_category, avg_sales_per_transaction), y = avg_sales_per_transaction)) +
-  geom_bar(stat = "identity", fill = "pink") +
+ggplot(avg_sales_per_transaction_category, aes(x = reorder(product_category, avg_sales_per_transaction), y = avg_sales_per_transaction, fill = product_category)) +
+  geom_bar(stat = "identity") +
   coord_flip() +
+  scale_fill_manual(values = merged_palette) +
   labs(title = "Average Sales Per Transaction by Product Category", 
        x = "Product Category", 
        y = "Average Sales Per Transaction ($)") +
-  geom_label(aes(label = scales::comma(round(avg_sales_per_transaction, 2))), 
+  geom_label(aes(label = paste0("$", comma(round(avg_sales_per_transaction, 2)))), 
              position = position_stack(vjust = 0.5), 
              size = 3, fill = "white") +
   theme_custom
@@ -272,7 +280,7 @@ significant_categories <- sales_by_category %>%
   filter(total_sales_value >= 0.1 * total_sales_income) %>%
   pull(product_category)
 
-# Filter the data for the most valuable product_category and aggregate sales by product_type
+# Filter the data for the most valuable product_category
 sales_by_type_significant <- data_sales %>%
   filter(product_category %in% significant_categories) %>%
   group_by(product_category, product_type) %>%
@@ -283,7 +291,7 @@ sales_by_type_significant <- data_sales %>%
   ) %>%
   arrange(desc(total_sales_value))
 
-# Custom function to create dodged bar plots for product types within categories
+# Function to create bar plots for product types within categories
 plot_sales_categories <- function(data, x_var, y_var, fill_var, title, y_label, y_breaks_by, label_prefix = "") {
   ggplot(data, aes(x = reorder(get(x_var), -get(y_var)), y = get(y_var), fill = get(fill_var))) +
     geom_bar(stat = "identity", position = position_dodge2(width = 0.9)) +
@@ -291,12 +299,13 @@ plot_sales_categories <- function(data, x_var, y_var, fill_var, title, y_label, 
                   y = get(y_var) / 2),
               size = 3, 
               fontface = "bold", 
-              colour = "gray90",
+              colour = "white",
               position = position_dodge2(width = 0.9), 
               vjust = 0.5) +
     scale_y_continuous(labels = comma, 
                        breaks = seq(0, max(data[[y_var]]) * 1.2, by = y_breaks_by),
                        limits = c(0, max(data[[y_var]]) * 1.2)) +
+    scale_fill_manual(values = merged_palette) +
     labs(title = title, 
          x = "Product Category", 
          y = y_label,
@@ -307,7 +316,7 @@ plot_sales_categories <- function(data, x_var, y_var, fill_var, title, y_label, 
           legend.position = "right")
 }
 
-# Call the function for total sales quantity (dodged by product type)
+# Call the function for total sales quantity
 plot_sales_categories(sales_by_type_significant, 
                       x_var = "product_category", 
                       y_var = "total_sales_qty", 
@@ -317,7 +326,7 @@ plot_sales_categories(sales_by_type_significant,
                       y_breaks_by = 2500,
                       label_prefix = "n = ")
 
-# Call the function for total sales value (dodged by product type)
+# Call the function for total sales value
 plot_sales_categories(sales_by_type_significant, 
                       x_var = "product_category", 
                       y_var = "total_sales_value", 
@@ -340,7 +349,8 @@ It is important to note that the best-selling product type did not generate the 
 # Create scatter plot showing the relationship between units sold and total sales value (profit)
 ggplot(sales_by_type_significant, aes(x = total_sales_qty, y = total_sales_value)) +
   geom_point(aes(color = product_type), size = 4, alpha = 0.6) +
-  geom_smooth(method = "lm", se = FALSE, color = "pink") +
+  geom_smooth(method = "lm", se = FALSE, color = "darkred", size = 0.5) +
+  scale_color_manual(values = merged_palette) +
   labs(title = "Correlation Between Units Sold and Total Profit by Product Type",
        x = "Units Sold",
        y = "Total Sales Value ($)",
@@ -388,8 +398,9 @@ ggplot(top_10_products_sales, aes(x = reorder(product_id, total_sales_value), y 
   geom_text(aes(label = paste("$", round(total_sales_value))),
               size = 3, 
               fontface = "bold", 
-              colour = "gray90",
+              colour = "white",
               position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = merged_palette) +
   labs(title = "Top 10 Products by Total Profit",
        x = "Product ID",
        y = "Total Sales Value ($)",
@@ -407,8 +418,9 @@ ggplot(top_10_products_sales, aes(x = reorder(product_id, total_sales_qty), y = 
    geom_text(aes(label = paste("n = ", round(total_sales_qty))),
               size = 3, 
               fontface = "bold", 
-              colour = "gray90",
+              colour = "white",
               position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = merged_palette) +
   labs(title = "Top 10 Products by Sales Quantity",
        x = "Product ID",
        y = "Total Quantity",
@@ -423,7 +435,7 @@ ggplot(top_10_products_sales, aes(x = reorder(product_id, total_sales_qty), y = 
 Since the previous analysis didn't provide sufficient insights, I decided to focus on identifying which drink sizes were the best sellers within the coffee, tea, and drinking chocolate categories. 
 
 ``` {r}
-# Extract drink size from product_detail (assuming size is at the end)
+# Extract drink size from product_detail
 sales_by_size <- data_sales %>%
   filter(product_category %in% c("Coffee", "Tea", "Drinking Chocolate")) %>%
   mutate(
@@ -449,6 +461,7 @@ ggplot(sales_by_size, aes(x = product_category, y = total_sales_qty, fill = drin
                label.size = 0.2,
                vjust = -0.5,
                position = position_dodge2(width = 0.9)) +
+  scale_fill_manual(values = merged_palette) +
   scale_y_continuous(labels = comma, 
                        breaks = seq(0, max(sales_by_size$total_sales_qty) * 1.2, by = 5000),
                      limits = c(0, max(sales_by_size$total_sales_qty) * 1.2)) +
@@ -467,6 +480,7 @@ ggplot(sales_by_size, aes(x = product_category, y = total_sales_value, fill = dr
                label.size = 0.2,
                vjust = -0.5,
                position = position_dodge2(width = 0.9)) +
+  scale_fill_manual(values = merged_palette) +
   scale_y_continuous(labels = comma, 
                        breaks = seq(0, max(sales_by_size$total_sales_value) * 1.2, by = 25000),
                      limits = c(0, max(sales_by_size$total_sales_value) * 1.2)) +
@@ -507,6 +521,7 @@ ggplot(sales_by_store, aes(x = reorder(store_location, sales_value), y = sales_v
              vjust = -0.3,
              size = 3, 
              fontface = "bold") +
+  scale_fill_manual(values = merged_palette) +
   scale_y_continuous(labels = comma,
                      breaks = seq(0, max(sales_by_store$sales_value) * 1.2, by = 50000),
                      limits = c(0, max(sales_by_store$sales_value) * 1.2)) +
@@ -533,6 +548,7 @@ sales_by_category_stores <- data_sales %>%
 ggplot(sales_by_category_stores, aes(x = reorder(product_category, total_sales_value), y = total_sales_value, fill = product_category)) +
   geom_bar(stat = "identity", position = "dodge2") +
   facet_wrap(~ store_location) +
+  scale_fill_manual(values = merged_palette) +
   scale_y_continuous(labels = comma,
                      breaks = seq(0, max(sales_by_category_stores$total_sales_value) * 1.2, by = 10000)) +
   labs(title = "Sales by Product Category and Store Location (Profit)",
@@ -545,6 +561,7 @@ ggplot(sales_by_category_stores, aes(x = reorder(product_category, total_sales_v
 ggplot(sales_by_category_stores, aes(x = reorder(product_category, total_sales_qty), y = total_sales_qty, fill = product_category)) +
   geom_bar(stat = "identity", position = "dodge2") +
   facet_wrap(~ store_location) +
+  scale_fill_manual(values = merged_palette) +
   scale_y_continuous(labels = comma,
                      breaks = seq(0, max(sales_by_category_stores$total_sales_qty) * 1.2, by = 5000)) +
   labs(title = "Sales by Product Category and Store Location (Sold Items)",
@@ -568,17 +585,21 @@ avg_sales_per_transaction_store <- data_sales %>%
   arrange(desc(avg_sales_per_transaction))
 
 # Plot average sales per transaction by store
-ggplot(avg_sales_per_transaction_store, aes(x = reorder(store_location, avg_sales_per_transaction), y = avg_sales_per_transaction, fill = store_location)) +
-  geom_bar(stat = "identity") +
+ggplot(avg_sales_per_transaction_store, aes(x = reorder(store_location, avg_sales_per_transaction), y = avg_sales_per_transaction)) +
+  geom_segment(aes(x = reorder(store_location, avg_sales_per_transaction), xend = reorder(store_location, avg_sales_per_transaction),
+                   y = 0, yend = avg_sales_per_transaction), color = "grey30") +
+  geom_point(aes(color = store_location), size = 6) +
   geom_label(aes(label = scales::comma(round(avg_sales_per_transaction, 2))), 
-             position = position_stack(vjust = 0.5), 
-             size = 5, fill = "white") +
+             vjust = -0.5, 
+             size = 4, fill = "white") +
+  scale_color_manual(values = merged_palette) +
   scale_y_continuous(labels = comma,
-                     breaks = seq(0, max(avg_sales_per_transaction_store$avg_sales_per_transaction) * 1.2, by = 0.5)) +
+                     breaks = seq(0, max(avg_sales_per_transaction_store$avg_sales_per_transaction) * 1.2, by = 0.5),
+                     limits = c(0, max(avg_sales_per_transaction_store$avg_sales_per_transaction) * 1.5) ) +
   labs(title = "Average Sales per Transaction by Store Location",
        x = "Store Location",
        y = "Average Sales per Transaction ($)",
-       fill = "Store Location") +
+       color = "Store Location") +
   theme_custom
 ```
 
@@ -587,4 +608,93 @@ There is little variation in the quantity of products sold, total profit, and sa
 ## 4.5.   Sales by Timeline
 ### 4.5.1.    Sales Trend Over Time (Monthly, Weekly, Daily)
 
+``` {r  sales trend over time (Monthly, Weekly)}
+sales_by_month_category <- data_sales %>%
+  mutate(
+    month = floor_date(transaction_date_and_time, "month"),
+    month_year = format(month, "%b-%Y")
+  ) %>%
+  group_by(month, month_year, product_category) %>%
+  summarise(
+    total_sales_qty = sum(transaction_qty, na.rm = TRUE),
+    total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# Plot the sales trends by Month-Year
+ggplot(sales_by_month_category, aes(x = reorder(month_year, month), y = total_sales_value, color = product_category, group = product_category)) +
+  geom_line(size = 0.5) + 
+  geom_point(size = 1) +
+  scale_color_manual(values = merged_palette) +
+  labs(title = "Sales Trend Over Time by Product Category", 
+       x = "Month-Year", 
+       y = "Total Sales Value ($)", 
+       color = "Product Category") +
+  theme_custom +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+# Group sales data by week and product category
+sales_by_week_category <- data_sales %>%
+  mutate(
+    week = floor_date(transaction_date_and_time, "week"),
+    week_year = format(week, "%U-%Y")
+  ) %>%
+  group_by(week, week_year, product_category) %>%
+  summarise(
+    total_sales_qty = sum(transaction_qty, na.rm = TRUE),
+    total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# Plot the sales trends by Week-Year
+ggplot(sales_by_week_category, aes(x = week_year, y = total_sales_value, color = product_category, group = product_category)) +
+  geom_line(size = 0.5) +
+  geom_point(size = 1) + 
+  scale_color_manual(values = merged_palette) +
+  labs(title = "Sales Trend Over Time by Product Category (Weekly)", 
+       x = "Week-Year", 
+       y = "Total Sales Value ($)", 
+       color = "Product Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+```
+
+The graph shows that sales of Coffee and Tea products increase significantly from February to June. Sales in other product categories, such as Bakery, Drinking Chocolate, and Coffee beans, also rise over this period, though less sharply than Coffee and Tea. Other categories also experience growth, but more gradually.
+
+The demand for Coffee and Tea remained steady in January, then started to rise from February through June. This pattern suggests that colder weather might have sustained demand early in the year, while warmer spring months encouraged even more consumption. Meanwhile, categories like Flavours and Packaged Chocolate maintained steady, year-round demand with minimal seasonal impact.
+
+To confirm these patterns, analyzing data over multiple years or incorporating weather data could help determine if these trends repeat each year.
+
+``` {r sales trend over time (Daily)}
+# Group data by day of the week
+sales_by_day_of_week <- data_sales %>%
+  mutate(day_of_week = wday(transaction_date_and_time, label = TRUE, abbr = TRUE)) %>%
+  group_by(day_of_week) %>%
+  summarise(
+    transaction_count = n(),  # Count of transactions
+    total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)  # Total sales income
+  )
+
+# Calculate the scaling factor
+scaling_factor <- max(sales_by_day_of_week$total_sales_value) / max(sales_by_day_of_week$transaction_count)
+
+# Plot with RColorBrewer colors
+ggplot(sales_by_day_of_week, aes(x = day_of_week)) +
+  geom_bar(aes(y = transaction_count, fill = day_of_week), stat = "identity", alpha = 0.7) +
+  geom_line(aes(y = total_sales_value / scaling_factor, group = 1), 
+            color = "darkblue", size = 1, linetype = "dashed") +
+  geom_point(aes(y = total_sales_value / scaling_factor), 
+             color = "darkblue", size = 3) +
+  scale_y_continuous(
+    name = "Transaction Count",
+    sec.axis = sec_axis(~ . * scaling_factor, name = "Total Sales Value ($)")
+  ) +
+  scale_fill_manual(values = colors) +
+  labs(title = "Frequency of Transactions and Total Sales Income by Day of the Week",
+       x = "Day of the Week") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+```
 
