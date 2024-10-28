@@ -47,7 +47,7 @@ palette2 <- brewer.pal(8, "Set3")
 merged_palette <- c(palette1, palette2)
 ```
 
-# 1.    Read Data and Set Variables Types
+# 1. Read Data and Set Variables Types
 
 ```{r coffee shop data}
 # Read data and transform categorical variables to factors
@@ -63,7 +63,7 @@ data_sales <- read_excel("data/raw/Coffee_Shop_Sales.xlsx") %>%
 skim(data_sales)
 ```
 
-# 2.    Clean Data and Check for Outliers
+# 2. Clean Data and Check for Outliers
 
 ```{r clean data, width = 24, height = 6}
 # Check for missing data
@@ -113,9 +113,9 @@ Similarly, no outliers were removed for *unit_price*, as all values, including p
 
 Given the acceptability of the data, no further outlier treatment is required for either *transaction_qty* or *unit_price*, ensuring that the dataset remains representative of normal business operations.
 
-# 3.    Desriptive Statistics
+# 3. Desriptive Statistics
 
-## 3.1.   Descriptive Statistics for Numerical Variables
+## 3.1. Descriptive Statistics for Numerical Variables
 
 ```{r numerical variables}
 # Function to calculate 95% confidence interval for the mean
@@ -154,7 +154,7 @@ data_sales %>%
   autofit()
 ```
 
-## 3.2.   Descriptive Statistics for Categorical Variables
+## 3.2. Descriptive Statistics for Categorical Variables
 
 ```{r categorical variables}
 # Clean and summarize the categorical data for all factor variables
@@ -176,11 +176,13 @@ data_sales %>%
   autofit()
 ```
 
-# 4.    Data Analysis
-## 4.1.   Sales By Product
-### 4.1.1.    Sales By Product Category
+# 4. Data Analysis
 
-```{r product category}
+## 4.1. Sales by Product
+
+### 4.1.1. Sales by Product Category
+
+```{r sales by product category}
 # Aggregate the total sales by product category
 sales_by_category <- data_sales %>%
   select(product_category, transaction_qty, unit_price) %>%
@@ -230,7 +232,7 @@ plot_sales_categories(sales_by_category,
 
 ```
 
-``` {r}
+```{r sales per transactions by product category}
 # Summarize average sales per transaction by product category
 avg_sales_per_transaction_category <- data_sales %>%
   group_by(product_category) %>%
@@ -254,8 +256,7 @@ ggplot(avg_sales_per_transaction_category, aes(x = reorder(product_category, avg
 
 ```
 
-Coffee beans and Branded products may be higher-priced items, leading to higher per-transaction sales even though they have fewer units sold.
-Coffee and Tea are likely lower-priced items but are sold in much larger quantities, contributing more significantly to the overall revenue, even though their average sales per transaction are lower.
+Coffee beans and Branded products may be higher-priced items, leading to higher per-transaction sales even though they have fewer units sold. Coffee and Tea are likely lower-priced items but are sold in much larger quantities, contributing more significantly to the overall revenue, even though their average sales per transaction are lower.
 
 **Key Observations:**
 
@@ -267,11 +268,11 @@ Coffee and Tea are likely lower-priced items but are sold in much larger quantit
 
 There’s a clear concentration of sales in a few major categories (Coffee, Tea, and Bakery), with the other categories contributing much smaller amounts.
 
-### 4.1.2.   Sales By Product Type
+### 4.1.2. Sales by Product Type
 
-There are 29 distinct product types in the dataset. To streamline the analysis, I chose to focus on the product types that belong to the top-selling product categories. These top categories were identified as those contributing at least 10% of the total revenue. This threshold is flexible and can be adjusted as needed. 
+There are 29 distinct product types in the dataset. To streamline the analysis, I chose to focus on the product types that belong to the top-selling product categories. These top categories were identified as those contributing at least 10% of the total revenue. This threshold is flexible and can be adjusted as needed.
 
-``` {r product type}
+```{r product type}
 # Calculate total sales income across all categories
 total_sales_income <- sum(sales_by_category$total_sales_value, na.rm = TRUE)
 
@@ -340,12 +341,11 @@ plot_sales_categories(sales_by_type_significant,
 
 The analysis of sales by product type of the best selling categories shows:
 
-The top three best-selling product types were *Brewed Chai Tea (sold 26,250 times), Gourmet Brewed Coffee (sold 25,973 times), and Barista Espresso (sold 24,943 times)*.
-The top three product types generating the highest profit were *Barista Espresso (\$91,406), Brewed Chai Tea (\$77,082), and Hot Chocolate (\$72,416 from 17,457 sales)*.
+The top three best-selling product types were *Brewed Chai Tea (sold 26,250 times), Gourmet Brewed Coffee (sold 25,973 times), and Barista Espresso (sold 24,943 times)*. The top three product types generating the highest profit were *Barista Espresso (\$91,406), Brewed Chai Tea (\$77,082), and Hot Chocolate (\$72,416 from 17,457 sales)*.
 
 It is important to note that the best-selling product type did not generate the highest profit, but still are in top three product types generating the highest profit. Let's ensure there is correlation between products sold and total sales value.
 
-``` {r correlation between units sold and profit, width = 24, height = 6}
+```{r correlation between units sold and profit, width = 24, height = 6}
 # Create scatter plot showing the relationship between units sold and total sales value (profit)
 ggplot(sales_by_type_significant, aes(x = total_sales_qty, y = total_sales_value)) +
   geom_point(aes(color = product_type), size = 4, alpha = 0.6) +
@@ -363,16 +363,15 @@ ggplot(sales_by_type_significant, aes(x = total_sales_qty, y = total_sales_value
   )
 ```
 
-The pink line represents the trend line (using linear regression), showing the general positive relationship between units sold and total sales value. This means that, as the number of units sold increases, total sales value generally increases as well. Since The correlation between sales and profit is positive, but the relationship isn't perfect—some products deviate from the trend.
-No product types were discovered that had low sales but high profit, indicating that products that generate significant revenue generally also have high sales volumes.
+The pink line represents the trend line (using linear regression), showing the general positive relationship between units sold and total sales value. This means that, as the number of units sold increases, total sales value generally increases as well. Since The correlation between sales and profit is positive, but the relationship isn't perfect—some products deviate from the trend. No product types were discovered that had low sales but high profit, indicating that products that generate significant revenue generally also have high sales volumes.
 
 **Ensuring that all stores are regularly stocked with these high-performing products is crucial, as they play a significant role in both sales volume and revenue.**
 
-### 4.1.3.   Sales By Product ID
+### 4.1.3. Sales By Product ID
 
-There are 80 unique product IDs in the dataset, but for this analysis, I concentrated on the Top 10 items that contribute the most significant portion of the total profit or were best-sellers. 
+There are 80 unique product IDs in the dataset, but for this analysis, I concentrated on the Top 10 items that contribute the most significant portion of the total profit or were best-sellers.
 
-``` {r product id}
+```{r product id}
 # Calculate the total profit for each product_id
 sales_profit <- data_sales %>%
   group_by(product_id, product_detail) %>%
@@ -432,9 +431,10 @@ ggplot(top_10_products_sales, aes(x = reorder(product_id, total_sales_qty), y = 
     legend.key.size = unit(0.3, "cm")
   )
 ```
-Since the previous analysis didn't provide sufficient insights, I decided to focus on identifying which drink sizes were the best sellers within the coffee, tea, and drinking chocolate categories. 
 
-``` {r}
+Since the previous analysis didn't provide sufficient insights, I decided to focus on identifying which drink sizes were the best sellers within the coffee, tea, and drinking chocolate categories.
+
+```{r}
 # Extract drink size from product_detail
 sales_by_size <- data_sales %>%
   filter(product_category %in% c("Coffee", "Tea", "Drinking Chocolate")) %>%
@@ -461,7 +461,7 @@ ggplot(sales_by_size, aes(x = product_category, y = total_sales_qty, fill = drin
                label.size = 0.2,
                vjust = -0.5,
                position = position_dodge2(width = 0.9)) +
-  scale_fill_manual(values = merged_palette) +
+  scale_fill_manual(values = palette2) +
   scale_y_continuous(labels = comma, 
                        breaks = seq(0, max(sales_by_size$total_sales_qty) * 1.2, by = 5000),
                      limits = c(0, max(sales_by_size$total_sales_qty) * 1.2)) +
@@ -480,7 +480,7 @@ ggplot(sales_by_size, aes(x = product_category, y = total_sales_value, fill = dr
                label.size = 0.2,
                vjust = -0.5,
                position = position_dodge2(width = 0.9)) +
-  scale_fill_manual(values = merged_palette) +
+  scale_fill_manual(values = palette2) +
   scale_y_continuous(labels = comma, 
                        breaks = seq(0, max(sales_by_size$total_sales_value) * 1.2, by = 25000),
                      limits = c(0, max(sales_by_size$total_sales_value) * 1.2)) +
@@ -496,10 +496,11 @@ This visualization helps highlight which drink sizes are most popular in each pr
 
 These insights suggest that stocking and promoting Large and Regular drinks should be a priority for maximizing both sales volume and profit in these categories. Efforts should be focused on ensuring these sizes are always available, especially in the Tea and Drinking Chocolate categories.
 
-## 4.2.   Sales by Store ID and Location
-### 4.2.1.    Compare Different Stores by Sales Value and Quantity Sold
+## 4.2. Sales by Store ID and Location
 
-``` {r}
+### 4.2.1. Compare Different Stores by Sales Value and Quantity Sold
+
+```{r}
 # Summarize sales by store ID
 sales_by_store <- data_sales %>%
   group_by(store_location, store_id) %>%
@@ -515,13 +516,13 @@ sales_by_store <- data_sales %>%
 # Plot both total sales quantity and value in a faceted plot
 ggplot(sales_by_store, aes(x = reorder(store_location, sales_value), y = sales_value, fill = store_location)) +
   geom_bar(stat = "identity", position = position_dodge2(width = 0.9)) +
-  geom_label(aes(label = scales::comma(round(sales_value))),
+  geom_label(aes(label = comma(round(sales_value))),
              fill = "white",
              position = position_dodge2(width = 0.9), 
              vjust = -0.3,
              size = 3, 
              fontface = "bold") +
-  scale_fill_manual(values = merged_palette) +
+  scale_fill_manual(values = palette2) +
   scale_y_continuous(labels = comma,
                      breaks = seq(0, max(sales_by_store$sales_value) * 1.2, by = 50000),
                      limits = c(0, max(sales_by_store$sales_value) * 1.2)) +
@@ -534,9 +535,9 @@ ggplot(sales_by_store, aes(x = reorder(store_location, sales_value), y = sales_v
 
 ```
 
-### 4.2.2.    Sales by Product Category for Each Store Location
+### 4.2.2. Sales by Product Category for Each Store Location
 
-``` {r}
+```{r}
 sales_by_category_stores <- data_sales %>%
   group_by(store_location, product_category) %>%
   summarise(
@@ -575,7 +576,7 @@ ggplot(sales_by_category_stores, aes(x = reorder(product_category, total_sales_q
 
 ### 4.2.3. Average Sales Per Transaction by Store
 
-``` {r}
+```{r}
 # Calculate average sales per transaction by store
 avg_sales_per_transaction_store <- data_sales %>%
   group_by(store_location) %>%
@@ -588,14 +589,15 @@ avg_sales_per_transaction_store <- data_sales %>%
 ggplot(avg_sales_per_transaction_store, aes(x = reorder(store_location, avg_sales_per_transaction), y = avg_sales_per_transaction)) +
   geom_segment(aes(x = reorder(store_location, avg_sales_per_transaction), xend = reorder(store_location, avg_sales_per_transaction),
                    y = 0, yend = avg_sales_per_transaction), color = "grey30") +
+  geom_point(aes(color = store_location), size = 10, alpha = 0.2) +
   geom_point(aes(color = store_location), size = 6) +
-  geom_label(aes(label = scales::comma(round(avg_sales_per_transaction, 2))), 
+  geom_label(aes(label = comma(round(avg_sales_per_transaction, 2))), 
              vjust = -0.5, 
              size = 4, fill = "white") +
-  scale_color_manual(values = merged_palette) +
+  scale_color_manual(values = palette1) +
   scale_y_continuous(labels = comma,
                      breaks = seq(0, max(avg_sales_per_transaction_store$avg_sales_per_transaction) * 1.2, by = 0.5),
-                     limits = c(0, max(avg_sales_per_transaction_store$avg_sales_per_transaction) * 1.5) ) +
+                     limits = c(0, max(avg_sales_per_transaction_store$avg_sales_per_transaction) * 1.2) ) +
   labs(title = "Average Sales per Transaction by Store Location",
        x = "Store Location",
        y = "Average Sales per Transaction ($)",
@@ -605,10 +607,11 @@ ggplot(avg_sales_per_transaction_store, aes(x = reorder(store_location, avg_sale
 
 There is little variation in the quantity of products sold, total profit, and sales across different product categories among the three stores. Similarly, the average sales per transaction are quite consistent across the stores, indicating that customer spending patterns are generally similar.
 
-## 4.5.   Sales by Timeline
-### 4.5.1.    Sales Trend Over Time (Monthly, Weekly, Daily)
+## 4.5. Sales by Timeline
 
-``` {r  sales trend over time (Monthly, Weekly)}
+### 4.5.1. Sales Trend Over Time (Monthly, Weekly, Daily)
+
+```{r  sales trend over time (Monthly, Weekly)}
 sales_by_month_category <- data_sales %>%
   mutate(
     month = floor_date(transaction_date_and_time, "month"),
@@ -655,7 +658,7 @@ ggplot(sales_by_week_category, aes(x = week_year, y = total_sales_value, color =
        x = "Week-Year", 
        y = "Total Sales Value ($)", 
        color = "Product Category") +
-  theme_minimal() +
+  theme_custom +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  
 ```
 
@@ -665,36 +668,182 @@ The demand for Coffee and Tea remained steady in January, then started to rise f
 
 To confirm these patterns, analyzing data over multiple years or incorporating weather data could help determine if these trends repeat each year.
 
-``` {r sales trend over time (Daily)}
+### 4.5.2. Sales by Day of the Week
+
+```{r sales by day of the week}
 # Group data by day of the week
 sales_by_day_of_week <- data_sales %>%
   mutate(day_of_week = wday(transaction_date_and_time, label = TRUE, abbr = TRUE)) %>%
   group_by(day_of_week) %>%
   summarise(
-    transaction_count = n(),  # Count of transactions
-    total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)  # Total sales income
+    transaction_count = sum(transaction_qty, na.rm = TRUE),
+    total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)
   )
 
 # Calculate the scaling factor
 scaling_factor <- max(sales_by_day_of_week$total_sales_value) / max(sales_by_day_of_week$transaction_count)
 
-# Plot with RColorBrewer colors
 ggplot(sales_by_day_of_week, aes(x = day_of_week)) +
   geom_bar(aes(y = transaction_count, fill = day_of_week), stat = "identity", alpha = 0.7) +
   geom_line(aes(y = total_sales_value / scaling_factor, group = 1), 
             color = "darkblue", size = 1, linetype = "dashed") +
   geom_point(aes(y = total_sales_value / scaling_factor), 
              color = "darkblue", size = 3) +
+  geom_text(aes(y = total_sales_value / scaling_factor, 
+                label = paste0("$", comma(round(total_sales_value, 2)))), 
+            vjust = -1, hjust = 0.5, color = "darkblue", size = 3) +
   scale_y_continuous(
     name = "Transaction Count",
-    sec.axis = sec_axis(~ . * scaling_factor, name = "Total Sales Value ($)")
+    sec.axis = sec_axis(~ . * scaling_factor, name = "Total Sales Value ($)"),
+    limits = c(0, max(sales_by_day_of_week$transaction_count) * 1.2)
   ) +
-  scale_fill_manual(values = colors) +
+  scale_fill_manual(values = merged_palette) +
   labs(title = "Frequency of Transactions and Total Sales Income by Day of the Week",
        x = "Day of the Week") +
-  theme_minimal() +
+  theme_custom +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none")
+```
+
+Product sales and profit stayed steady across the week, with a small drop on weekends.
+
+### 4.5.3. Sales by Time of Day
+
+```{r}
+# Define time periods for time of day
+data_sales <- data_sales %>%
+  mutate(
+    time_of_day = case_when(
+      hour(transaction_date_and_time) >= 6 & hour(transaction_date_and_time) < 12 ~ "Morning",
+      hour(transaction_date_and_time) >= 12 & hour(transaction_date_and_time) < 17 ~ "Afternoon",
+      hour(transaction_date_and_time) >= 17 & hour(transaction_date_and_time) < 21 ~ "Evening"
+    ),
+    time_of_day = factor(time_of_day, levels = c("Morning", "Afternoon", "Evening"))
+  )
+
+# Summarize total sales quantity by time of day and product category
+sales_by_time_of_day <- data_sales %>%
+  group_by(time_of_day, product_category) %>%
+  summarise(
+    total_sales_qty = sum(transaction_qty, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# Calculate total sales value by time of day across all product categories
+total_sales_value_by_time <- data_sales %>%
+  group_by(time_of_day) %>%
+  summarise(total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)) %>%
+  ungroup()
+
+# Calculate the scaling factor
+scaling_factor <- max(total_sales_value_by_time$total_sales_value) / max(sales_by_time_of_day$total_sales_qty)
+
+# Plot the sales by time of day with a single line for total sales value
+ggplot() +
+  geom_bar(data = sales_by_time_of_day, aes(x = time_of_day, y = total_sales_qty, fill = product_category), 
+           stat = "identity", position = "stack", alpha = 0.7) +
+  geom_line(data = total_sales_value_by_time, aes(x = time_of_day, y = total_sales_value / scaling_factor, group = 1), 
+            color = "darkblue", size = 0.5, linetype = "dashed") +
+  geom_point(data = total_sales_value_by_time,
+             aes(x = time_of_day, y = total_sales_value / scaling_factor), 
+             color = "darkblue",
+             size = 2) +
+  geom_text(data = total_sales_value_by_time, 
+            aes(x = time_of_day, y = total_sales_value / scaling_factor, 
+                label = paste0("$", comma(round(total_sales_value, 2)))), 
+                vjust = -1.2,
+                color = "darkblue",
+                size = 3) +
+  scale_y_continuous(name = "Total Products Sold",
+                    sec.axis = sec_axis(~ . * scaling_factor, name = "Total Sales Value ($)")) +
+  scale_fill_manual(values = merged_palette) +
+  labs(title = "Sales Comparison by Time of Day and Product Category",
+       x = "Time of Day",
+       y = "Total Products Sold",
+       fill = "Product Category") +
+  theme_custom +
+  theme(legend.position = "right")
+```
+
+The analysis of sales by time of day reveals that Morning hours drive the highest product sales and revenue, reaching \$338,289. Afternoon sales contribute a moderate \$204,721, while Evening hours show the lowest revenue at \$105,803.
+
+This trend suggests that Morning hours are peak shopping times, making it essential to ensure optimal product availability and staffing during these hours to maximize sales potential.
+
+### 4.5.4. Sales Trend
+
+```{r}
+# Monthly Sales Growth
+monthly_sales <- data_sales %>%
+  mutate(month = floor_date(transaction_date_and_time, "month")) %>%
+  group_by(month) %>%
+  summarise(total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)) %>%
+  arrange(month) %>%
+  mutate(monthly_growth = (total_sales_value - lag(total_sales_value)) / lag(total_sales_value) * 100) # actual minus previous
+
+# Calculate scaling factor for secondary y-axis
+monthly_growth_scale <- max(monthly_sales$total_sales_value, na.rm = TRUE) / max(monthly_sales$monthly_growth, na.rm = TRUE)
+
+# Plot Monthly Sales and Growth Rate
+ggplot(monthly_sales, aes(x = month)) +
+  geom_bar(aes(y = total_sales_value), stat = "identity", fill = "skyblue", alpha = 0.8) +
+  geom_line(aes(y = monthly_growth * monthly_growth_scale), 
+            color = "darkred", linetype = "dashed", size = 1) +
+  geom_point(aes(y = monthly_growth * monthly_growth_scale), 
+             color = "darkred", size = 2) +
+  scale_y_continuous(
+    name = "Total Sales Value ($)",
+    sec.axis = sec_axis(~ . / monthly_growth_scale, name = "Monthly Growth Rate (%)"),
+    limits = c(min(monthly_sales$monthly_growth), max(monthly_sales$total_sales_value) * 1.2 )
+  ) +
+  geom_label(aes(
+    y = monthly_growth * monthly_growth_scale,
+    label = paste0(round(monthly_growth, 2), "%")
+  ),
+  vjust = -0.5,
+  size = 3) +
+  labs(title = "Monthly Sales Growth or Decline",
+       x = "Month",
+       y = "Total Sales Value") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Weekly Sales Growth
+weekly_sales <- data_sales %>%
+  mutate(week = floor_date(transaction_date_and_time, "week")) %>%
+  group_by(week) %>%
+  summarise(total_sales_value = sum(transaction_qty * unit_price, na.rm = TRUE)) %>%
+  arrange(week) %>%
+  mutate(weekly_growth = (total_sales_value - lag(total_sales_value)) / lag(total_sales_value) * 100)
+
+# Calculate scaling factor for weekly growth
+weekly_growth_scale <- max(weekly_sales$total_sales_value, na.rm = TRUE) / max(weekly_sales$weekly_growth, na.rm = TRUE)
+
+# Plot Weekly Sales and Growth Rate
+ggplot(weekly_sales, aes(x = week)) +
+  geom_bar(aes(y = total_sales_value), stat = "identity", fill = "pink", alpha = 0.8) +
+  geom_line(aes(y = weekly_growth * weekly_growth_scale), 
+            color = "darkblue", linetype = "dashed", size = 1) +
+  geom_point(aes(y = weekly_growth * weekly_growth_scale), 
+             color = "darkblue", size = 2) +
+  scale_y_continuous(
+    name = "Total Sales Value ($)",
+    sec.axis = sec_axis(~ . / weekly_growth_scale, name = "Weekly Growth Rate (%)"),
+    limits = c(min(weekly_sales$weekly_growth), max(weekly_sales$total_sales_value) * 1.2)
+  ) +
+  geom_label(aes(
+    y = weekly_growth * weekly_growth_scale,
+    label = paste0(round(weekly_growth, 2), "%")
+  ),
+  vjust = -0.2,
+  size = 3) +
+  labs(title = "Weekly Sales Growth or Decline",
+       x = "Week",
+       y = "Total Sales Value") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ```
 
+The strongest sales growth occurs from March to May, signaling a potentially seasonal or trend-based increase in demand during this period. Although June maintains high sales, the growth rate begins to level off, suggesting a plateau.
+
+The weekly growth rate shows high variability, with some weeks experiencing sharp growth while others show significant declines. This may indicate a pattern of inconsistent demand or varying promotional strategies.
