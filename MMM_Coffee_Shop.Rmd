@@ -25,6 +25,9 @@ library(ggplot2)
 library(gridExtra)
 library(scales)
 library(RColorBrewer)
+library(httr)
+library(jsonlite)
+library(Robyn)
 
 # Set the custom theme
 theme_custom <- theme_minimal() +
